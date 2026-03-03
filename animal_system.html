@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>动物人格测试</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/jspdf-font-cn@1.0.0/dist/simhei-normal.js"></script>
+
+<style>
+body { font-family: Arial, margin: 0, background: #f4f6f9; }
+.container { max-width: 600px; margin: 20px auto; padding: 15px; background: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+h1 { text-align: center; font-size: 1.4em; }
+button { width: 100%; padding: 12px; margin-top: 15px; font-size: 16px; border: none; border-radius: 6px; background: #4CAF50; color: #fff; }
+input[type=text] { width: 100%; padding: 10px; font-size: 16px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; }
+.question { margin-bottom: 15px; }
+label { display: block; margin-bottom: 6px; }
+.hidden { display: none; }
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 350px;
+}
+
+@media (max-width: 768px) {
+    .chart-wrapper {
+        height: 300px; /* Adjust for mobile view */
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="container" id="startPage">
+    <h1>动物人格测试</h1>
+    <p>请输入你的姓名开始测试：</p>
+    <input id="username" placeholder="请输入姓名">
+    <button onclick="startTest()">开始测试</button>
+</div>
+
+<div class="container hidden" id="testPage">
+    <h1>20题性格测试</h1>
+    <form id="quizForm"></form>
+    <button onclick="submitTest()">提交测试</button>
+</div>
+
+<div class="container hidden" id="resultPage">
+    <h1>你的测试报告</h1>
+    <div class="chart-wrapper">
+        <canvas id="radarChart"></canvas>
+    </div>
+    <div id="resultText"></div>
+</div>
+
+<script>
+let currentUser="";
+let radarChart=null;
+let scores={lion:0,tiger:0,koala:0,owl:0};
+
+const questions=[
+    "当团队意见不统一时，你通常会？",
+    "面对压力时你更可能？",
+    "做决定时你依赖？",
+    "朋友眼中的你是？",
+    "工作中你最看重？",
+    "遇到挑战时你会？",
+    "在人际关系中你更倾向？",
+    "当计划改变时你会？",
+    "别人批评你时你会？",
+    "你喜欢的工作节奏是？",
+    "你对规则的态度是？",
+    "你在会议中的表现是？",
+    "面对拖延的人你会？",
+    "你如何看待风险？",
+    "你更擅长？",
+    "在冲突中你会？",
+    "你对细节的态度是？",
+    "你喜欢的领导方式是？",
+    "当别人依赖你时？",
+    "你最不能忍受的是？"
+];
+
+const options={
+    lion:["主导方向","强势应对","快速拍板","有领导力","结果导向","迎难而上","掌控局面","立即调整","直接回应","高效率","规则为目标服务","主导讨论","直接催促","大胆承担","战略规划","正面解决","关注大方向","明确指挥","承担责任","效率低下"],
+    tiger:["迅速行动","积极突破","直觉判断","充满激情","速度第一","主动出击","活跃气氛","随机应变","反击回去","快速推进","灵活处理","频繁发言","立刻推进","愿意尝试","执行落实","情绪表达","重视行动","激励带动","快速帮忙","拖泥带水"],
+    koala:["协调关系","寻求支持","听取建议","温和体贴","团队和谐","稳步推进","维持和谐","缓慢适应","自我反思","稳定节奏","遵守规则","倾听他人","耐心沟通","谨慎评估","支持协助","缓解矛盾","关注他人感受","民主协商","默默付出","冲突争吵"],
+    owl:["分析原因","冷静分析","数据依据","理性冷静","准确无误","制定计划","理性沟通","评估影响","逻辑回应","按部就班","严格遵守","记录重点","制定流程","计算风险","数据分析","理性讨论","关注细节","制度管理","系统解决","混乱无序"]
+};
+
+function startTest(){
+    let u=document.getElementById("username").value;
+    if(!u){alert("请输入姓名");return;}
+    currentUser=u;
+    document.getElementById("startPage").classList.add("hidden");
+    document.getElementById("testPage").classList.remove("hidden");
+    generateQuestions();
+}
+
+function generateQuestions(){
+    const form=document.getElementById("quizForm");
+    form.innerHTML="";
+    for(let i=0;i<20;i++){
+        let q=document.createElement("div");
+        q.className="question";
+        q.innerHTML="<b>"+(i+1)+". "+questions[i]+"</b><br>";
+        for(let type in options){
+            q.innerHTML+=`<label><input type="radio" name="q${i}" value="${type}">${options[type][i]}</label>`;
+        }
+        form.appendChild(q);
+    }
+}
+
+function submitTest(){
+    scores={lion:0,tiger:0,koala:0,owl:0};
+    for(let i=0;i<20;i++){
+        let ans=document.querySelector('input[name="q'+i+'"]:checked');
+        if(!ans){alert("请完成所有题目");return;}
+        scores[ans.value]++;
+    }
+    showResult();
+}
+
+function showResult(){
+    document.getElementById("testPage").classList.add("hidden");
+    document.getElementById("resultPage").classList.remove("hidden");
+
+    let total=20;
+    let percent={
+        lion:Math.round(scores.lion/total*100),
+        tiger:Math.round(scores.tiger/total*100),
+        koala:Math.round(scores.koala/total*100),
+        owl:Math.round(scores.owl/total*100)
+    };
+
+    if(radarChart){radarChart.destroy();}
+
+    radarChart=new Chart(document.getElementById("radarChart"),{
+        type:"radar",
+        data:{
+            labels:["狮子","老虎","考拉","猫头鹰"],
+            datasets:[{
+                label:"人格比例",
+                data:[percent.lion,percent.tiger,percent.koala,percent.owl],
+                backgroundColor:"rgba(76,175,80,0.3)",
+                borderColor:"#4CAF50",
+                borderWidth:2
+            }]
+        },
+        options:{
+            responsive:true,
+            maintainAspectRatio:true,  // Adjust to keep chart from compressing
+            scales:{
+                r:{
+                    beginAtZero:true,
+                    max:100,
+                    ticks:{stepSize:20}
+                }
+            }
+        }
+    });
+
+    let maxType=Object.keys(scores).reduce((a,b)=>scores[a]>scores[b]?a:b);
+
+    const report={
+        lion:"🦁 **狮子型人格**\n你具备强烈的目标意识与领导气质，适合决策与管理岗位。在团队中，你总是能够迅速作出决策并带领他人前进。你自信且果断，喜欢主导方向，具有较强的领导力和执行力。\n\n**人际交往**：你是天生的领导者，能够掌控局面并激发他人的潜力。你有时可能显得过于强势，甚至不容忍他人的意见。为了改善人际关系，可以学会更加耐心倾听他人的声音，尊重不同的观点。\n\n**穿搭建议**：狮子型人格通常喜欢引人注目，可以选择一些有设计感、独特的穿搭风格，暗示你自信和领导力。大气、简约但具个性的衣服如高档西装、定制服饰等都是不错的选择。\n\n**职业方向**：适合管理岗位、企业高层领导、项目经理等需要决策和指挥的角色。\n\n**情绪管理**：在面对压力时，你容易显得急躁和强硬。学会冷静思考，避免情绪失控对他人产生不良影响。",
+        
+        tiger:"🐯 **老虎型人格**\n你行动力强，充满激情与活力。在面对困难时，你总是能够迅速做出反应，迅速推进事务。你具有较强的直觉判断力和创新能力，往往能够在变化中找到机会。\n\n**人际交往**：你喜欢快速行动，可能会给人一种冲动的印象。虽然你的积极性很高，但有时你过于急躁，可能会忽视他人的感受。学会适时控制自己的情绪，学会更多聆听他人的意见。\n\n**穿搭建议**：老虎型人格喜欢快速行动和自由，所以穿着应简洁而富有动感。例如运动风、休闲风、科技感十足的时尚单品都是很好的选择。穿着应突出舒适感和功能性，适合自由活动。\n\n**职业方向**：适合快速发展的行业如销售、市场营销、创业等，需要快速决策和行动力的工作。\n\n**情绪管理**：在情绪管理上，老虎型人格有时容易情绪化，尤其是遇到挫折时。学会平衡情绪，避免因情绪过于激烈影响工作和生活。",
+        
+        koala:"🐨 **考拉型人格**\n你温和、稳重，重视和谐的人际关系。在工作和生活中，你倾向于通过与他人建立良好的关系来推动事务，尽量避免冲突，寻求共识。\n\n**人际交往**：你擅长建立深厚的人际关系，关心他人，温暖而体贴。由于你太过强调和谐和稳定，可能会有时候容易显得犹豫不决，不愿做出改变。学会在关键时刻展现自己的决断力，避免拖延。\n\n**穿搭建议**：考拉型人格适合穿着简洁、舒适、低调的衣物。偏爱自然色调，穿着应展现出亲和力和稳定感。适合柔和的搭配，如棉质衣物、简约款式的衣物，突出自己的温暖气质。\n\n**职业方向**：适合团队协作型的岗位，如客户服务、HR、项目协调等角色。你喜欢在和谐的环境中发挥自己的优势。\n\n**情绪管理**：由于较为敏感，考拉型人格容易受到外界环境的影响。学会自我调节，增强情绪的自我掌控能力，避免因为过于情绪化而错失机会。",
+        
+        owl:"🦉 **猫头鹰型人格**\n你理性、分析能力强，擅长逻辑思维和系统解决问题。你喜欢按照既定流程执行事务，注重细节和准确性。你具有较强的分析力和判断力，能够深入思考并作出精准的决策。\n\n**人际交往**：你可能在交往中显得理性和冷静，有时甚至缺乏情感的表达。你需要意识到感性与理性的平衡，适当展现个人的情感和关怀，才能建立更为亲密的人际关系。\n\n**穿搭建议**：猫头鹰型人格通常喜欢理性且精准的风格，穿着应注重经典、简洁和实用。例如正式的西装、条纹衬衫、黑白配色等，能够体现你严谨的思维和个性。\n\n**职业方向**：适合科研、数据分析、技术开发、律师等需要高度逻辑和分析能力的职位。\n\n**情绪管理**：猫头鹰型人格情绪稳定，但也容易在面对压力时陷入过度分析。学会在行动中找到情感的调节点，避免过度理性导致行动迟缓。",
+    };
+
+    document.getElementById("resultText").innerHTML=
+    "<pre>"+report[maxType]+"\n\n人格比例：狮子"+percent.lion+"% 老虎"+percent.tiger+"% 考拉"+percent.koala+"% 猫头鹰"+percent.owl+"%</pre>";
+}
+</script>
+
+</body>
+</html>
